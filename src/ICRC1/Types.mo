@@ -153,11 +153,6 @@ module {
         #Err : SetParameterError;
     };
 
-    public type SetBoolParameterResult = {
-        #Ok : Bool;
-        #Err : SetParameterError;
-    };
-
     /// Interface for the ICRC token canister
     public type TokenInterface = actor {
 
@@ -261,6 +256,7 @@ module {
         max_supply : Balance;
         initial_balances : [(Account, Balance)];
         min_burn_amount : Balance;
+
         /// optional value that defaults to the caller if not provided
         minting_account : ?Account;
 

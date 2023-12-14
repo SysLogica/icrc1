@@ -1,21 +1,33 @@
 {
 	"version": 1,
 	"canisters": {
-			"icrc1": {
-					"type": "motoko",
-					"main": "src/ICRC1/Canisters/Token.mo"
-			}
+		"icrc1": {
+			"type": "motoko",
+			"main": "src/ICRC1/Canisters/Token.mo"
+		},
+		"archive": {
+			"type": "motoko",
+			"main": "src/ICRC1/Canisters/Archive.mo"
+		},
+		"icrc1-staging": {
+			"type": "motoko",
+			"main": "src/ICRC1/Canisters/Token.mo"
+		},
+		"test": {
+			"type": "motoko",
+			"main": "tests/ActorTest.mo",
+			"args": "-v --compacting-gc"
+		}
 	},
 	"defaults": {
-			"build": {
-					"packtool": "mops sources",
-					"args": ""
-			}
+		"build": {
+			"packtool": "mops sources",
+			"args": ""
+		}
 	},
 	"networks": {
 		"local": {
 			"bind": "127.0.0.1:8000"
 		}
 	}
-	
 }

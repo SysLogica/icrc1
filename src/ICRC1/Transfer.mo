@@ -127,27 +127,25 @@ module {
         #ok();
     };
 
-     /// Checks if a transfer fee is valid
+    /// Checks if a transfer fee is valid
     public func validate_fee(
         token : T.TokenData,
         opt_fee : ?T.Balance,
     ) : Bool {
         switch (opt_fee) {
             case (?tx_fee) {
-                if (tx_fee < token._fee) {
+                if (tx_fee != token._fee) { // ensure that the transaction was not sent assuming different current fee 
                     return false;
                 };
             };
             case (null) {
-                if (token._fee > 0) {
-                    return false;
-                };
+                return true; // if fee is not passed as arg, the transaction is assumed ok with current fee.
             };
         };
 
         true;
     };
-    
+
     /// Checks if a transfer request is valid
     public func validate_request(
         token : T.TokenData,

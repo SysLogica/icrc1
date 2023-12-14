@@ -35,7 +35,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async T.Archive
     stable let BUCKET_SIZE = 1000;
     stable let MAX_TRANSACTIONS_PER_REQUEST = 5000;
 
-    stable let MAX_TXS_LENGTH = 100;
+    stable let MAX_TXS_LENGTH = 1000;
 
     stable var memory_pages : Nat64 = ExperimentalStableMemory.size();
     stable var total_memory_used : Nat64 = 0;

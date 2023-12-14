@@ -80,6 +80,10 @@ shared ({ caller = _owner }) actor class Token(
     public shared ({ caller }) func burn(args : ICRC1.BurnArgs) : async ICRC1.TransferResult {
         await* ICRC1.burn(token, args, caller);
     };
+    
+    public shared ({ caller }) func set_name(name : Text) : async ICRC1.SetTextParameterResult {
+        await* ICRC1.set_name(token, name, caller);
+    };
 
     public shared ({ caller }) func set_symbol(symbol : Text) : async ICRC1.SetTextParameterResult {
         await* ICRC1.set_symbol(token, symbol, caller);
@@ -92,11 +96,23 @@ shared ({ caller = _owner }) actor class Token(
     public shared ({ caller }) func set_fee(fee : ICRC1.Balance) : async ICRC1.SetBalanceParameterResult {
         await* ICRC1.set_fee(token, fee, caller);
     };
-    
+
+    public shared ({ caller }) func set_decimals(decimals : Nat8) : async ICRC1.SetNat8ParameterResult {
+        await* ICRC1.set_decimals(token, decimals, caller);
+    };
+
+    public shared ({ caller }) func set_min_burn_amount(min_burn_amount : ICRC1.Balance) : async ICRC1.SetBalanceParameterResult {
+        await* ICRC1.set_min_burn_amount(token, min_burn_amount, caller);
+    };
+
     public shared ({ caller }) func set_minting_account(minting_account : Text) : async ICRC1.SetAccountParameterResult {
         await* ICRC1.set_minting_account(token, minting_account, caller);
     };
-    
+
+    public shared query func min_burn_amount() : async ICRC1.Balance {
+        ICRC1.min_burn_amount(token);
+    };
+
     public shared query func get_archive() : async ICRC1.ArchiveInterface {
         ICRC1.get_archive(token);
     };

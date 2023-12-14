@@ -1,19 +1,20 @@
-( record {               
-    name = "<Insert Token Name>";                         
-    symbol = "<Insert Symbol>";                           
-    decimals = 6;                                           
+( record {                     
+    name = "Windoge98";                         
+    symbol = "EXE";                           
+    decimals = 8;                                           
     fee = 1_000_000;                                        
+    logo = "data:image/png;base64,iVBORw0...K5CYII=";                                        
     max_supply = 1_000_000_000_000;                         
     initial_balances = vec {                                
         record {                                            
             record {                                        
-                owner = principal "r7inp-6aaaa-aaaaa-aaabq-cai";   
+                owner = principal "3scjg-z33zr-ll3bt-hdsov-kkitm-3tsml-tvgkt-d6jwa-onz35-hkfq5-zae";   
                 subaccount = null;                          
             };                                              
-            100_000_000                                     
+            1_000_000_000_000                                 
         }                                                   
-    };                                                             
-    min_burn_amount = 10_000;
-    minting_account = null;
-    advanced_settings = null;
+    };                                                      
+    min_burn_amount = 10_000;                         
+    minting_account = null;                                 
+    advanced_settings = null;                               
 })

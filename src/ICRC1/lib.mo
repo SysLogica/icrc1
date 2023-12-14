@@ -10,6 +10,7 @@ import Nat8 "mo:base/Nat8";
 import Option "mo:base/Option";
 import Principal "mo:base/Principal";
 import EC "mo:base/ExperimentalCycles";
+import IC "mo:ic";
 
 import Itertools "mo:itertools/Iter";
 import StableTrieMap "mo:StableTrieMap";
@@ -59,16 +60,15 @@ module {
     public type ArchivedTransaction = T.ArchivedTransaction;
 
     public type TransferResult = T.TransferResult;
-    
     public type SetTextParameterResult = T.SetTextParameterResult;
     public type SetBalanceParameterResult = T.SetBalanceParameterResult;
     public type SetNat8ParameterResult = T.SetNat8ParameterResult;
     public type SetAccountParameterResult = T.SetAccountParameterResult;
-    public type SetBoolParameterResult = T.SetBoolParameterResult;
 
     public let MAX_TRANSACTIONS_IN_LEDGER = 2000;
     public let MAX_TRANSACTION_BYTES : Nat64 = 196;
     public let MAX_TRANSACTIONS_PER_REQUEST = 5000;
+    let ic = actor("aaaaa-aa") : IC.Service;
 
     /// Initialize a new ICRC-1 token
     public func init(args : T.InitArgs) : T.TokenData {
@@ -166,13 +166,32 @@ module {
         token._decimals;
     };
 
-
     /// Retrieve the fee for each transfer
     public func fee(token : T.TokenData) : T.Balance {
         token._fee;
     };
-    
-        /// Set the symbol of the token
+
+    /// Retrieve the minimum burn amount for the token
+    public func min_burn_amount(token : T.TokenData) : T.Balance {
+        token._min_burn_amount;
+    };
+
+    /// Set the name of the token
+    public func set_name(token : T.TokenData, name : Text, caller : Principal) : async* T.SetTextParameterResult {
+        if (caller == token._minting_account.owner) {
+            token._name := name;
+        } else {
+            return #Err(
+                #GenericError {
+                    error_code = 401;
+                    message = "Unauthorized: Setting name only allowed via minting account.";
+                },
+            );
+        };
+        #Ok(token._name);
+    };
+
+    /// Set the symbol of the token
     public func set_symbol(token : T.TokenData, symbol : Text, caller : Principal) : async* T.SetTextParameterResult {
         if (caller == token._minting_account.owner) {
             token._symbol := symbol;
@@ -205,7 +224,16 @@ module {
     /// Set the fee for each transfer
     public func set_fee(token : T.TokenData, fee : Nat, caller : Principal) : async* T.SetBalanceParameterResult {
         if (caller == token._minting_account.owner) {
-            token._fee := fee;
+            if (fee >= 10_000 and fee <= 1_000_000_000) {
+                token._fee := fee;
+            } else {
+                return #Err(
+                    #GenericError {
+                        error_code = 400;
+                        message = "Bad request: fee must be a value between 10_000 and 1_000_000_000.";
+                    },
+                );
+            };
         } else {
             return #Err(
                 #GenericError {
@@ -215,6 +243,54 @@ module {
             );
         };
         #Ok(token._fee);
+    };
+
+    /// Set the number of decimals specified for the token
+    public func set_decimals(token : T.TokenData, decimals : Nat8, caller : Principal) : async* T.SetNat8ParameterResult {
+        if (caller == token._minting_account.owner) {
+            if (decimals >= 2 and decimals <= 12) {
+                token._decimals := decimals;
+            } else {
+                return #Err(
+                    #GenericError {
+                        error_code = 400;
+                        message = "Bad request: decimals must be a value between 2 and 12.";
+                    },
+                );
+            };      
+        } else {
+            return #Err(
+                #GenericError {
+                    error_code = 401;
+                    message = "Unauthorized: Setting decimals only allowed via minting account.";
+                },
+            );
+        };
+        #Ok(token._decimals);
+    };
+
+    /// Set the minimum burn amount
+    public func set_min_burn_amount(token : T.TokenData, min_burn_amount : Nat, caller : Principal) : async* T.SetBalanceParameterResult {
+        if (caller == token._minting_account.owner) {
+            if (min_burn_amount >= 10_000 and min_burn_amount <= 1_000_000_000_000) {
+                token._min_burn_amount := min_burn_amount;
+            } else {
+                return #Err(
+                    #GenericError {
+                        error_code = 400;
+                        message = "Bad request: minimum burn amount must be a value between 10_000 and 1_000_000_000_000.";
+                    },
+                );
+            };   
+        } else {
+            return #Err(
+                #GenericError {
+                    error_code = 401;
+                    message = "Unauthorized: Setting minimum burn amount only allowed via minting account.";
+                },
+            );
+        };
+        #Ok(token._min_burn_amount);
     };
 
     /// Set the minting account
@@ -254,7 +330,7 @@ module {
     /// Returns the total number of transactions in the archive
     public func get_archive_stored_txs(token : T.TokenData) : Nat {
         token.archive.stored_txs;
-    };
+    };    
 
     /// Returns the total supply of circulating tokens
     public func total_supply(token : T.TokenData) : T.Balance {
@@ -367,23 +443,13 @@ module {
     };
 
     /// Helper function to mint tokens with minimum args
-    public func mint(token : T.TokenData, args : T.Mint, caller : Principal) : async* T.TransferResult {
-
-        if (caller != token._minting_account.owner) {
-            return #Err(
-                #GenericError {
-                    error_code = 401;
-                    message = "Unauthorized: Only the minting_account can mint tokens.";
-                },
-            );
-        };
-
-        let transfer_args : T.TransferArgs = {
-            args with from_subaccount = token._minting_account.subaccount;
-            fee = null;
-        };
-
-        await* transfer(token, transfer_args, caller);
+    public func mint(token : T.TokenData, args : T.Mint, caller : Principal) : async* T.TransferResult {													
+        return #Err(
+            #GenericError {
+                error_code = 401;
+                message = "Unauthorized: Minting not allowed.";
+            },
+        );
     };
 
     /// Helper function to burn tokens with minimum args

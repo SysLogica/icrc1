@@ -1,4 +1,4 @@
-# Windoge98 ICRC-1 Implementation
+# Windoge98 ICRC-1 
 This repo contains the source code for the Windoge98 ICRC1 token, 
 a fork of the [NatLabs implementation](https://github.com/NatLabs/icrc1) of the 
 [ICRC-1](https://github.com/dfinity/ICRC-1) token standard. 
@@ -15,7 +15,7 @@ NB: A logo field has been added to the construction arguments. Below is the exam
     dfx deploy icrc1 --argument '( record {                     
         name = "Windoge98";                         
         symbol = "EXE";                           
-        decimals = 6;                                           
+        decimals = 8;                                           
         fee = 1_000_000;                                        
         logo = "data:image/png;base64,iVBORw0...K5CYII=";                                        
         max_supply = 1_000_000_000_000;                         

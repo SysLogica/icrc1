@@ -22,4 +22,4 @@
             }
         );
         advanced_settings = null;
-    })'  --network ic
+    })' 

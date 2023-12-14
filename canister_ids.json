@@ -1,5 +1,11 @@
 {
   "icrc1": {
     "ic": "rh2pm-ryaaa-aaaan-qeniq-cai"
+  },
+  "archive": {
+    "ic": "e3o6i-daaaa-aaaan-qeo2a-cai"
+  },
+  "icrc1-staging": {
+    "ic": "mvlgq-eiaaa-aaaan-qepnq-cai"
   }
 }
