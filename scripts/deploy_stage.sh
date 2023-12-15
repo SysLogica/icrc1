@@ -1,4 +1,4 @@
-    dfx deploy icrc1 --argument '( record {               
+    dfx deploy icrc1-staging --argument '( record {               
         name = "Windoge98";                         
         symbol = "EXE";                           
         decimals = 8;                               

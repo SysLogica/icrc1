@@ -212,7 +212,7 @@ module {
             token.accounts,
             encoded.from,
             func(balance) {
-                balance - (amount - tx_fee);
+                balance - (amount + tx_fee);
             },
         );
 
@@ -220,7 +220,7 @@ module {
             token.accounts,
             encoded.to,
             func(balance) {
-                balance + (amount - tx_fee);
+                balance + amount;
             },
         );
     };
