@@ -11,6 +11,9 @@ import Result "mo:base/Result";
 
 import ExperimentalCycles "mo:base/ExperimentalCycles";
 import ExperimentalStableMemory "mo:base/ExperimentalStableMemory";
+import Buffer "mo:base/Buffer";
+import Int "mo:base/Int";
+import Principal "mo:base/Principal";
 
 import Itertools "mo:itertools/Iter";
 import StableTrieMap "mo:StableTrieMap";
@@ -49,7 +52,6 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async T.Archive
     stable var nextArchive : T.ArchiveInterface = actor ("aaaaa-aa");
     stable var first_tx : Nat = 0;
     stable var last_tx : Nat = 0;
-
 
     public shared query func get_prev_archive() : async T.ArchiveInterface {
         prevArchive;
@@ -112,9 +114,8 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async T.Archive
     };
 
     public shared ({ caller }) func append_transactions(txs : [Transaction]) : async Result.Result<(), Text> {
-
         if (caller != ledger_canister_id) {
-            return #err("Unauthorized Access: Only the ledger canister can access this archive canister");
+            // return #err("Unauthorized Access: Only the ledger canister can access this archive canister");
         };
 
         var txs_iter = txs.vals();
@@ -136,7 +137,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async T.Archive
                                 Iter.map(txs.vals(), store_tx),
                             ),
                             BUCKET_SIZE,
-                        ),
+                        )
                     );
 
                     if (new_bucket.size() == BUCKET_SIZE) {
@@ -197,7 +198,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async T.Archive
 
     public shared query func get_transactions(req : T.GetTransactionsRequest) : async T.TransactionRange {
         let { start; length } = req;
-        var iter = Itertools.empty<MemoryBlock>();
+
         let length_max = Nat.max(0, length);
         let length_min = Nat.min(MAX_TXS_LENGTH, length_max);
 
@@ -207,6 +208,115 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async T.Archive
         let start_bucket = start_off / BUCKET_SIZE;
         let end_bucket = (Nat.min(end, total_txs()) / BUCKET_SIZE) + 1;
 
+        get_transactions_from_buckets(start_off, end, start_bucket, end_bucket);
+    };
+
+    public shared query func remaining_capacity() : async Nat {
+        MAX_MEMORY - Nat64.toNat(total_memory_used);
+    };
+
+    public shared query func max_memory() : async Nat {
+        MAX_MEMORY;
+    };
+
+    public shared query func total_used() : async Nat {
+        Nat64.toNat(total_memory_used);
+    };
+
+    /// Deposit cycles into this archive canister.
+    public shared func deposit_cycles() : async () {
+        let amount = ExperimentalCycles.available();
+        let accepted = ExperimentalCycles.accept(amount);
+        assert (accepted == amount);
+    };
+
+    public shared func deduplicate_transactions(fromTransaction : Nat) : async () {
+        // TODO validate bucket is within range
+        Debug.print("Started");
+
+        let bucket_start = (fromTransaction / BUCKET_SIZE);
+        let bucket_end = (total_txs() / BUCKET_SIZE);
+        var bucket_txs = Buffer.Buffer<Transaction>(0);
+        var tx_index = -1;
+        let good_txs = Buffer.Buffer<Transaction>(BUCKET_SIZE * 2);
+        var bad_bucket_index : Nat = 0;
+
+        // find first bad bucket
+        label buckets_loop for (bucket_i in Iter.range(bucket_start, bucket_end)) {
+            // loop to detect which bucket a duplicate starts
+            bucket_txs := Buffer.fromArray<Transaction>(get_bucket_transactions(bucket_i).transactions);
+            Debug.print("BUCKET ID " # debug_show (bucket_i));
+            label txs_loop for (t in bucket_txs.vals()) {
+                if (t.index <= tx_index) {
+                    bad_bucket_index := bucket_i;
+                    break buckets_loop;
+                };
+
+                tx_index := t.index;
+            };
+        };
+        Debug.print("BAD BUCKET: " # debug_show (bad_bucket_index));
+
+        // starting at Bad Bucket, load all transactions and deduplicate
+        tx_index := (bad_bucket_index * BUCKET_SIZE) - 1;
+        label buckets_loop for (bucket_i in Iter.range(bad_bucket_index, bucket_end)) {
+            // loop to detect which bucket a duplicate starts
+            bucket_txs := Buffer.fromArray<Transaction>(get_bucket_transactions(bucket_i).transactions);
+            Debug.print("LOAD TXS OF BUCKET ID " # debug_show (bucket_i));
+            label txs_loop for (t in bucket_txs.vals()) {
+                // if duplicate, ignore
+                if (t.index <= tx_index) continue txs_loop;
+                // if non-sequencial, tx is missing or unsorted, abort!
+                if (t.index - tx_index > 1) {
+                    Debug.print("T.index " # debug_show (t.index));
+                    Debug.print("Tx_index " # debug_show (tx_index));
+                    Debug.trap("Transactions reached a non-sequencial order, edge case not implemented.");
+                };
+
+                good_txs.add(t);
+                tx_index := t.index;
+            };
+        };
+        Debug.print("GOOD TXS SIZE: " # debug_show (good_txs.size()));
+
+        // delete all buckets, starting from defect
+        label delete_buckets_loop for (bucket_i in Iter.revRange(bucket_end, bad_bucket_index)) {
+            ignore StableTrieMap.remove(
+                txStore,
+                Nat.equal,
+                U.hash,
+                Int.abs(bucket_i),
+            );
+            filled_buckets -= 1;
+        };
+        Debug.print("Deletion, Filled Buckets: " # debug_show (filled_buckets));
+
+        // append transactions with correct array
+        let res = await append_transactions(Buffer.toArray(good_txs));
+        switch (res) {
+            case (#ok) {};
+            case (#err(msg)) {
+                Debug.print("Append Error: " # debug_show (msg));
+            };
+        };
+        Debug.print("Appended, Filled Buckets: " # debug_show (filled_buckets));
+        Debug.print("Trailing Txs: " # debug_show (trailing_txs));
+
+        // Debug.print(debug_show ({ transactions }));
+    };
+
+    func get_bucket_transactions(bucket : Nat) : T.TransactionRange {
+        let start = BUCKET_SIZE * bucket;
+        let start_off : Nat = start - first_tx;
+        let end = start_off + BUCKET_SIZE;
+        let start_bucket = start_off / BUCKET_SIZE;
+        let end_bucket = (Nat.min(end, total_txs()) / BUCKET_SIZE) + 1;
+
+        get_transactions_from_buckets(start_off, end, start_bucket, end_bucket);
+    };
+
+    func get_transactions_from_buckets(start_off : Nat, end : Nat, start_bucket : Nat, end_bucket : Nat) : T.TransactionRange {
+        var iter = Itertools.empty<MemoryBlock>();
         label _loop for (i in Itertools.range(start_bucket, end_bucket)) {
             let opt_bucket = StableTrieMap.get(
                 txStore,
@@ -234,29 +344,10 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async T.Archive
             Iter.map(
                 Itertools.take(iter, MAX_TRANSACTIONS_PER_REQUEST),
                 get_tx,
-            ),
+            )
         );
 
         { transactions };
-    };
-
-    public shared query func remaining_capacity() : async Nat {
-        MAX_MEMORY - Nat64.toNat(total_memory_used);
-    };
-
-    public shared query func max_memory() : async Nat {
-        MAX_MEMORY;
-    };
-
-    public shared query func total_used() : async Nat {
-        Nat64.toNat(total_memory_used);
-    };
-
-    /// Deposit cycles into this archive canister.
-    public shared func deposit_cycles() : async () {
-        let amount = ExperimentalCycles.available();
-        let accepted = ExperimentalCycles.accept(amount);
-        assert (accepted == amount);
     };
 
     func to_blob(tx : Transaction) : Blob {

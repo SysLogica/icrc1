@@ -14,6 +14,7 @@ actor {
     ];
 
     public func run_tests() : async () {
+
         for (test in test_modules.vals()) {
             let success = ActorSpec.run([await test()]);
 

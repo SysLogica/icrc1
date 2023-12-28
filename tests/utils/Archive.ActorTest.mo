@@ -8,6 +8,7 @@ import Nat64 "mo:base/Nat64";
 import Principal "mo:base/Principal";
 import EC "mo:base/ExperimentalCycles";
 import Text "mo:base/Text";
+import Buffer "mo:base/Buffer";
 
 import Archive "../../src/ICRC1/Canisters/Archive";
 import T "../../src/ICRC1/Types";
@@ -56,7 +57,7 @@ module {
 
     func create_canister_and_add_cycles(n : Float) {
         EC.add(
-            CREATE_CANISTER + Int.abs(Float.toInt(n * 1_000_000_000_000)),
+            CREATE_CANISTER + Int.abs(Float.toInt(n * 1_000_000_000_000))
         );
     };
 
@@ -89,7 +90,7 @@ module {
 
                         let res = await archive.append_transactions(txs);
                         switch (res) {
-                            case (#ok){
+                            case (#ok) {
                                 Debug.print("append_transactions: success");
                                 assertAllTrue([
                                     (await archive.total_transactions()) == 3555,
@@ -103,13 +104,13 @@ module {
                                     (await archive.get_transaction(999999)) == null,
                                 ]);
                             };
-                            case (#err(errMsg)){
+                            case (#err(errMsg)) {
                                 Debug.print("append_transactions: " # errMsg);
                                 assertAllTrue([
                                     false,
                                 ]);
                             };
-                        }                   
+                        };
                     },
                 ),
                 it(
@@ -124,33 +125,83 @@ module {
                         let res = await archive.append_transactions(txs);
 
                         switch (res) {
-                            case (#ok){
+                            case (#ok) {
                                 Debug.print("append_transactions: success");
                                 let total = await archive.total_transactions();
                                 Debug.print("total_transactions: " # Nat.toText(total));
 
-                                 let tx_range = await archive.get_transactions({
+                                let tx_range = await archive.get_transactions({
                                     start = 3251;
                                     length = 2000;
                                 });
 
-                                    assertAllTrue([
-                            res == #ok(),
-                            (await archive.total_transactions()) == 5000,
-                            (await archive.get_transactions({ start = 0; length = 100 })).transactions == txs_range(0, 100),
-                            (await archive.get_transactions({ start = 225; length = 100 })).transactions == txs_range(225, 325),
-                            (await archive.get_transactions({ start = 225; length = 1000 })).transactions == txs_range(225, 1225),
-                            (await archive.get_transactions({ start = 980; length = 100 })).transactions == txs_range(980, 1080),
-                            (await archive.get_transactions({ start = 3251; length = 1000 })).transactions == txs_range(3251, 4251),
-                        ]);
+                                assertAllTrue([
+                                    res == #ok(),
+                                    (await archive.total_transactions()) == 5000,
+                                    (await archive.get_transactions({ start = 0; length = 100 })).transactions == txs_range(0, 100),
+                                    (await archive.get_transactions({ start = 225; length = 100 })).transactions == txs_range(225, 325),
+                                    (await archive.get_transactions({ start = 225; length = 1000 })).transactions == txs_range(225, 1225),
+                                    (await archive.get_transactions({ start = 980; length = 100 })).transactions == txs_range(980, 1080),
+                                    (await archive.get_transactions({ start = 3251; length = 1000 })).transactions == txs_range(3251, 4251),
+                                ]);
                             };
-                            case (#err(errMsg)){
+                            case (#err(errMsg)) {
                                 Debug.print("append_transactions: " # errMsg);
                                 assertAllTrue([
                                     false,
                                 ]);
                             };
-                        }
+                        };
+                    },
+                ),
+                it(
+                    "deduplicate_transactions()",
+                    do {
+                        create_canister_and_add_cycles(0.1);
+                        let archive = await Archive.Archive();
+
+                        // first batch
+                        let txs = new_txs(14000);
+                        let txs_buffer = Buffer.fromArray<T.Transaction>(txs);
+                        // second batch
+                        let second_batch_txs = txs_range(txs_buffer.size(), txs_buffer.size() + 2002);
+                        let second_batch_txs_buffer = Buffer.fromArray<T.Transaction>(second_batch_txs);
+                        // duplicate that batch
+                        second_batch_txs_buffer.append(second_batch_txs_buffer);
+                        // join
+                        txs_buffer.append(second_batch_txs_buffer);
+                        // then add a new correct batch on top of it
+                        let last_batch_txs = txs_range(txs_buffer.size() - 2002, txs_buffer.size() - 2002 + 18005);
+                        let last_batch_txs_buffer = Buffer.fromArray<T.Transaction>(last_batch_txs);
+                        txs_buffer.append(last_batch_txs_buffer);
+
+                        let res = await archive.append_transactions(Buffer.toArray(txs_buffer));
+
+                        switch (res) {
+                            case (#ok) {
+                                Debug.print("append_transactions2: success");
+                                let total = await archive.total_transactions();
+                                Debug.print("total_transactions: " # Nat.toText(total));
+
+                                await archive.deduplicate_transactions(13900);
+
+                                let new_total = await archive.total_transactions();
+                                Debug.print("updated_total_transactions: " # Nat.toText(new_total));
+
+                                assertAllTrue([
+                                    res == #ok(),
+                                    (total) == 36009,
+                                    (new_total) == 34007,
+                                    (await archive.get_transactions({ start = 0; length = 100 })).transactions == txs_range(0, 100),
+                                ]);
+                            };
+                            case (#err(errMsg)) {
+                                Debug.print("append_transactions: " # errMsg);
+                                assertAllTrue([
+                                    false,
+                                ]);
+                            };
+                        };
                     },
                 ),
             ],
