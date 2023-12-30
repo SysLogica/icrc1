@@ -153,6 +153,29 @@ module {
                         }
                     },
                 ),
+                it(
+                    "append_transactions() doesn't duplicate",
+                    do {
+                        create_canister_and_add_cycles(0.1);
+                        let archive = await Archive.Archive();
+
+                        let txs = new_txs(1000);
+                        ignore await archive.append_transactions(txs);
+
+                        // added 1 extra transaction that is not duplicated, and should be appended
+                        let duplicated_txs = new_txs(1001);
+                        ignore await archive.append_transactions(duplicated_txs);
+
+                        // also testing when tx falls inside the bucket
+                        let duplicated_and_inside_bucket_txs = new_txs(1501);
+
+                        assertAllTrue([
+                            (await archive.total_transactions()) == 1001,
+                            (await archive.append_transactions(duplicated_and_inside_bucket_txs)) == #ok(),
+                            (await archive.total_transactions()) == 1501,
+                        ]);
+                    },
+                ),
             ],
         );
     };
