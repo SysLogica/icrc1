@@ -155,6 +155,41 @@ module {
                     },
                 ),
                 it(
+                    "backups and gets backup transactions",
+                    do {
+                        create_canister_and_add_cycles(0.1);
+                        let archive = await Archive.Archive();
+
+                        let txs = new_txs(3555);
+                        let res = await archive.append_transactions(txs);
+
+                        // backup
+                        await archive.add_backup();
+
+                        switch (res) {
+                            case (#ok) {
+                                assertAllTrue([
+                                    (await archive.total_transactions()) == 3555,
+                                    (await archive.get_backup_transaction(0)) == ?new_tx(0),
+                                    (await archive.get_backup_transaction(999)) == ?new_tx(999),
+                                    (await archive.get_backup_transaction(1000)) == ?new_tx(1000),
+                                    (await archive.get_backup_transaction(1234)) == ?new_tx(1234),
+                                    (await archive.get_backup_transaction(2829)) == ?new_tx(2829),
+                                    (await archive.get_backup_transaction(3554)) == ?new_tx(3554),
+                                    (await archive.get_backup_transaction(3555)) == null,
+                                    (await archive.get_backup_transaction(999999)) == null,
+                                ]);
+                            };
+                            case (#err(errMsg)) {
+                                Debug.print("append_transactions: " # errMsg);
+                                assertAllTrue([
+                                    false,
+                                ]);
+                            };
+                        };
+                    },
+                ),
+                it(
                     "deduplicate_transactions()",
                     do {
                         create_canister_and_add_cycles(0.1);

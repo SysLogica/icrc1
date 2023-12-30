@@ -47,6 +47,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async T.Archive
     stable var trailing_txs = 0;
 
     stable let txStore = StableTrieMap.new<Nat, [MemoryBlock]>();
+    stable var backupTxStore = StableTrieMap.new<Nat, [MemoryBlock]>();
 
     stable var prevArchive : T.ArchiveInterface = actor ("aaaaa-aa");
     stable var nextArchive : T.ArchiveInterface = actor ("aaaaa-aa");
@@ -111,6 +112,41 @@ shared ({ caller = ledger_canister_id }) actor class Archive() : async T.Archive
         last_tx := tx;
 
         #ok();
+    };
+
+    public shared func add_backup() : async () {
+        backupTxStore := StableTrieMap.clone(
+            txStore,
+            Nat.equal,
+            U.hash,
+        );
+    };
+
+    public shared query func get_backup_transaction(tx_index : T.TxIndex) : async ?Transaction {
+        let tx_max = Nat.max(tx_index, first_tx);
+        let tx_off : Nat = tx_max - first_tx;
+        let bucket_key = tx_off / BUCKET_SIZE;
+
+        let opt_bucket = StableTrieMap.get(
+            backupTxStore,
+            Nat.equal,
+            U.hash,
+            bucket_key,
+        );
+
+        switch (opt_bucket) {
+            case (?bucket) {
+                let i = tx_off % BUCKET_SIZE;
+                if (i < bucket.size()) {
+                    ?get_tx(bucket[tx_off % BUCKET_SIZE]);
+                } else {
+                    null;
+                };
+            };
+            case (_) {
+                null;
+            };
+        };
     };
 
     public shared ({ caller }) func append_transactions(txs : [Transaction]) : async Result.Result<(), Text> {
