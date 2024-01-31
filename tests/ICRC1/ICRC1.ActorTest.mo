@@ -156,9 +156,6 @@ module {
         func validate_archived_range(request : [T.GetTransactionsRequest], response : [T.ArchivedTransaction]) : async Bool {
 
             if (request.size() != response.size()) {
-                Debug.print("Arch size: " # debug_show request.size());
-                Debug.print(" Expec size " # debug_show response.size());
-                Debug.print(" Diff request size ");
                 return false;
             };
 
