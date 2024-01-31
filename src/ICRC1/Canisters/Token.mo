@@ -12,7 +12,7 @@ import ICRC1 "..";
 import Archive "Archive";
 
 shared ({ caller = _owner }) actor class Token(
-    init_args : ICRC1.TokenInitArgs,
+    init_args : ICRC1.TokenInitArgs
 ) : async ICRC1.FullInterface {
 
     let icrc1_args : ICRC1.InitArgs = {
@@ -73,14 +73,14 @@ shared ({ caller = _owner }) actor class Token(
             #GenericError {
                 error_code = 401;
                 message = "Unauthorized: Minting is not allowed.";
-            },
+            }
         );
     };
 
     public shared ({ caller }) func burn(args : ICRC1.BurnArgs) : async ICRC1.TransferResult {
         await* ICRC1.burn(token, args, caller);
     };
-    
+
     public shared ({ caller }) func set_name(name : Text) : async ICRC1.SetTextParameterResult {
         await* ICRC1.set_name(token, name, caller);
     };

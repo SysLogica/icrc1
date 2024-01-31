@@ -9,8 +9,8 @@ actor {
     let { run } = ActorSpec;
 
     let test_modules = [
-        Archive.test,
         ICRC1.test,
+        Archive.test,
     ];
 
     public func run_tests() : async () {

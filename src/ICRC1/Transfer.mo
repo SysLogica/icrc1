@@ -134,7 +134,8 @@ module {
     ) : Bool {
         switch (opt_fee) {
             case (?tx_fee) {
-                if (tx_fee != token._fee) { // ensure that the transaction was not sent assuming different current fee 
+                if (tx_fee != token._fee) {
+                    // ensure that the transaction was not sent assuming different current fee
                     return false;
                 };
             };
@@ -157,7 +158,7 @@ module {
                 #GenericError({
                     error_code = 0;
                     message = "The sender cannot have the same account as the recipient.";
-                }),
+                })
             );
         };
 
@@ -165,8 +166,8 @@ module {
             return #err(
                 #GenericError({
                     error_code = 0;
-                    message = "Invalid account entered for sender. "  # debug_show(tx_req.from);
-                }),
+                    message = "Invalid account entered for sender. " # debug_show (tx_req.from);
+                })
             );
         };
 
@@ -174,8 +175,8 @@ module {
             return #err(
                 #GenericError({
                     error_code = 0;
-                    message = "Invalid account entered for recipient " # debug_show(tx_req.to);
-                }),
+                    message = "Invalid account entered for recipient " # debug_show (tx_req.to);
+                })
             );
         };
 
@@ -184,7 +185,7 @@ module {
                 #GenericError({
                     error_code = 0;
                     message = "Memo must not be more than 32 bytes";
-                }),
+                })
             );
         };
 
@@ -193,7 +194,7 @@ module {
                 #GenericError({
                     error_code = 0;
                     message = "Amount must be greater than 0";
-                }),
+                })
             );
         };
 
@@ -202,7 +203,7 @@ module {
                 #GenericError({
                     error_code = 0;
                     message = "Amount must be greater than fee";
-                }),
+                })
             );
         };
 
@@ -212,7 +213,7 @@ module {
                     return #err(
                         #BadFee {
                             expected_fee = token._fee;
-                        },
+                        }
                     );
                 };
 
@@ -221,23 +222,24 @@ module {
                     tx_req.encoded.from,
                 );
 
-                if (tx_req.amount > balance) { // amount is inclusive of fee
+                if (tx_req.amount > balance) {
+                    // amount is inclusive of fee
                     return #err(#InsufficientFunds { balance });
                 };
             };
 
             case (#mint) {
-				return #err(
-					#GenericError({
-						error_code = 0;
-						message = "Minting not allowed";
-					}),
-				);
-			};
+                return #err(
+                    #GenericError({
+                        error_code = 0;
+                        message = "Minting not allowed";
+                    })
+                );
+            };
             case (#burn) {
                 if (tx_req.to == token._minting_account and tx_req.amount < token._min_burn_amount) {
                     return #err(
-                        #BadBurn { min_burn_amount = token._min_burn_amount },
+                        #BadBurn { min_burn_amount = token._min_burn_amount }
                     );
                 };
 
@@ -264,7 +266,7 @@ module {
                     return #err(
                         #CreatedInFuture {
                             ledger_time = Nat64.fromNat(Int.abs(Time.now()));
-                        },
+                        }
                     );
                 };
 
@@ -273,7 +275,7 @@ module {
                         return #err(
                             #Duplicate {
                                 duplicate_of = tx_index;
-                            },
+                            }
                         );
                     };
                     case (_) {};
